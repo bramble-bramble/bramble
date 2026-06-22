@@ -6,14 +6,34 @@ interface MiniGameProps {}
 
 export default function MiniGame({}: MiniGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isGameOver, setIsGameOver] = useState(false);
-  const [score, setScore] = useState(0);
-  const [highScore, setHighScore] = useState(0);
+  
+  // Game state refs
+  const scoreRef = useRef(0);
+  const highScoreRef = useRef(0);
+  const gameStateRef = useRef<'idle' | 'playing' | 'gameover'>('idle');
+  const brambleRef = useRef({ x: 80, y: 0, vy: 0, grounded: true, rotation: 0 });
+  const obstaclesRef = useRef<any[]>([]);
+  const flowersRef = useRef<any[]>([]);
+  const particlesRef = useRef<any[]>([]);
+  const cloudsRef = useRef<any[]>([]);
+  const frameRef = useRef(0);
+  const speedRef = useRef(4);
+  const animIdRef = useRef<number>(0);
+  const canDoubleJumpRef = useRef(false);
+  const scrollOffsetRef = useRef(0);
+
+  // React state ONLY for overlay
+  const [displayState, setDisplayState] = useState<'idle'|'playing'|'gameover'>('idle');
+  const [displayScore, setDisplayScore] = useState(0);
+  const [displayHigh, setDisplayHigh] = useState(0);
 
   useEffect(() => {
     const saved = localStorage.getItem('bramble_high_score');
-    if (saved) setHighScore(parseInt(saved, 10));
+    if (saved) {
+      const high = parseInt(saved, 10);
+      highScoreRef.current = high;
+      setDisplayHigh(high);
+    }
   }, []);
 
   useEffect(() => {
@@ -22,283 +42,489 @@ export default function MiniGame({}: MiniGameProps) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let animationId: number;
-    let frames = 0;
-
-    // Game variables
-    const groundHeight = 60;
-    let speed = 4;
-    
-    let bramble = {
-      x: 50,
-      y: canvas.height - groundHeight - 40,
-      width: 40,
-      height: 40,
-      velocity: 0,
-      gravity: 0.6,
-      jumpStrength: -10,
-      isGrounded: true
+    const resizeCanvas = () => {
+      if (canvas.parentElement) {
+        canvas.width = canvas.parentElement.offsetWidth;
+      }
     };
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
-    let obstacles: any[] = [];
-    let flowers: any[] = [];
-    
+    // Init clouds
+    for (let i = 0; i < 4; i++) {
+      cloudsRef.current.push({
+        x: Math.random() * canvas.width,
+        y: 20 + Math.random() * 100,
+        s: 0.5 + Math.random() * 0.8
+      });
+    }
+
+    const groundHeight = 70;
+    const brambleRadius = 22;
+
     const resetGame = () => {
-      bramble.y = canvas.height - groundHeight - 40;
-      bramble.velocity = 0;
-      bramble.isGrounded = true;
-      obstacles = [];
-      flowers = [];
-      frames = 0;
-      speed = 4;
-      setScore(0);
-      setIsGameOver(false);
+      scoreRef.current = 0;
+      setDisplayScore(0);
+      gameStateRef.current = 'playing';
+      setDisplayState('playing');
+      brambleRef.current = { 
+        x: 80, 
+        y: canvas.height - groundHeight - brambleRadius, 
+        vy: 0, 
+        grounded: true, 
+        rotation: 0 
+      };
+      obstaclesRef.current = [];
+      flowersRef.current = [];
+      particlesRef.current = [];
+      frameRef.current = 0;
+      speedRef.current = 4;
+      scrollOffsetRef.current = 0;
     };
 
     const jump = () => {
-      if (bramble.isGrounded) {
-        bramble.velocity = bramble.jumpStrength;
-        bramble.isGrounded = false;
+      if (gameStateRef.current === 'idle') {
+        resetGame();
+        return;
+      }
+      if (gameStateRef.current === 'gameover') {
+        resetGame();
+        return;
+      }
+      
+      const b = brambleRef.current;
+      if (b.grounded) {
+        b.vy = -13;
+        b.grounded = false;
+        canDoubleJumpRef.current = true;
+      } else if (canDoubleJumpRef.current) {
+        b.vy = -11;
+        canDoubleJumpRef.current = false;
       }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         e.preventDefault();
-        if (isPlaying && !isGameOver) jump();
+        jump();
       }
     };
     
     const handleTouch = (e: TouchEvent | MouseEvent) => {
       e.preventDefault();
-      if (isPlaying && !isGameOver) jump();
+      jump();
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    canvas.addEventListener('touchstart', handleTouch);
+    canvas.addEventListener('touchstart', handleTouch, { passive: false });
     canvas.addEventListener('mousedown', handleTouch);
 
-    const drawBramble = (x: number, y: number) => {
-      ctx.fillStyle = '#8B5A2B'; // Brown
-      ctx.beginPath();
-      ctx.arc(x + 20, y + 20, 20, 0, Math.PI * 2);
-      ctx.fill();
-      // Spikes
+    const drawBramble = (x: number, y: number, rotation: number) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+
+      // Body
       ctx.fillStyle = '#A0522D';
-      for(let i=0; i<5; i++) {
+      ctx.beginPath();
+      ctx.arc(0, 0, brambleRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Underbelly
+      ctx.fillStyle = '#F5E6D3';
+      ctx.beginPath();
+      ctx.arc(0, 0, brambleRadius, 0, Math.PI, false);
+      ctx.fill();
+
+      // Spikes
+      ctx.fillStyle = '#5C3317';
+      for(let i=0; i<8; i++) {
+        const ang = (i * Math.PI * 2) / 8;
+        ctx.save();
+        ctx.rotate(ang);
         ctx.beginPath();
-        ctx.moveTo(x + 5 + i*8, y + 5);
-        ctx.lineTo(x + 10 + i*8, y - 5);
-        ctx.lineTo(x + 15 + i*8, y + 5);
+        ctx.moveTo(brambleRadius - 2, -5);
+        ctx.lineTo(brambleRadius + 8, 0);
+        ctx.lineTo(brambleRadius - 2, 5);
         ctx.fill();
+        ctx.restore();
       }
+
+      // Eye
+      ctx.fillStyle = '#FFF';
+      ctx.beginPath();
+      ctx.arc(10, -5, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#3D2817';
+      ctx.beginPath();
+      ctx.arc(12, -5, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#FFF';
+      ctx.beginPath();
+      ctx.arc(13, -6, 1, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
     };
 
     const drawObstacle = (obs: any) => {
-      ctx.fillStyle = '#FF4500'; // Fox orange
-      ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+      const { x, y, w, h } = obs;
+      ctx.fillStyle = '#E8651A';
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, [10, 10, 0, 0]);
+      ctx.fill();
+      
       // Ears
       ctx.beginPath();
-      ctx.moveTo(obs.x, obs.y);
-      ctx.lineTo(obs.x + 5, obs.y - 10);
-      ctx.lineTo(obs.x + 15, obs.y);
+      ctx.moveTo(x + 5, y);
+      ctx.lineTo(x + 10, y - 12);
+      ctx.lineTo(x + 15, y);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + w - 15, y);
+      ctx.lineTo(x + w - 10, y - 12);
+      ctx.lineTo(x + w - 5, y);
+      ctx.fill();
+
+      // Belly patch
+      ctx.fillStyle = '#FFF';
+      ctx.beginPath();
+      ctx.ellipse(x + w/2, y + h - 10, w/3, h/3, 0, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Nose
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.arc(x + 5, y + 10, 3, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Tail
+      ctx.fillStyle = '#E8651A';
+      ctx.beginPath();
+      ctx.arc(x + w, y + h - 15, 10, Math.PI/2, Math.PI*1.5);
       ctx.fill();
     };
 
     const drawFlower = (flower: any) => {
+      const { x, y, phase } = flower;
+      const bobY = y + Math.sin(frameRef.current * 0.05 + phase) * 4;
+      
+      ctx.save();
+      ctx.translate(x + 10, bobY + 10);
+      
+      // Petals
       ctx.fillStyle = '#FFFFFF';
-      ctx.beginPath();
-      ctx.arc(flower.x + 10, flower.y + 10, 8, 0, Math.PI * 2);
-      ctx.fill();
+      for (let i = 0; i < 6; i++) {
+        ctx.save();
+        ctx.rotate((i * Math.PI * 2) / 6);
+        ctx.beginPath();
+        ctx.ellipse(8, 0, 6, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      
+      // Center
       ctx.fillStyle = '#FFD700';
       ctx.beginPath();
-      ctx.arc(flower.x + 10, flower.y + 10, 4, 0, Math.PI * 2);
+      ctx.arc(0, 0, 5, 0, Math.PI * 2);
       ctx.fill();
+      
+      ctx.restore();
+    };
+
+    const drawBackground = () => {
+      // Sky
+      const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      grad.addColorStop(0, '#87CEEB');
+      grad.addColorStop(1, '#B8D4E8');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Clouds
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      cloudsRef.current.forEach(c => {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, 30 * c.s, 0, Math.PI*2);
+        ctx.arc(c.x + 25 * c.s, c.y - 10 * c.s, 35 * c.s, 0, Math.PI*2);
+        ctx.arc(c.x + 50 * c.s, c.y, 25 * c.s, 0, Math.PI*2);
+        ctx.fill();
+        if (gameStateRef.current === 'playing') {
+          c.x -= speedRef.current * 0.2;
+        }
+        if (c.x + 100 < 0) {
+          c.x = canvas.width + 50;
+          c.y = 20 + Math.random() * 100;
+        }
+      });
+
+      // Hills
+      const drawHills = (color: string, offsetMult: number, yOffset: number, amplitude: number) => {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height);
+        const shift = (scrollOffsetRef.current * offsetMult) % 400;
+        
+        for (let x = -shift; x <= canvas.width + 400; x += 200) {
+          ctx.quadraticCurveTo(x + 100, canvas.height - yOffset - amplitude, x + 200, canvas.height - yOffset);
+        }
+        ctx.lineTo(canvas.width, canvas.height);
+        ctx.lineTo(0, canvas.height);
+        ctx.fill();
+      };
+
+      drawHills('#3d6b47', 0.3, groundHeight + 20, 60);
+      drawHills('#4A7C59', 0.6, groundHeight, 40);
+
+      // Grass texture
+      ctx.fillStyle = '#5a9169';
+      for(let i=0; i<canvas.width; i+=15) {
+        const xPos = i - (scrollOffsetRef.current % 15);
+        ctx.fillRect(xPos, canvas.height - groundHeight, 3, 10);
+      }
+    };
+
+    const spawnParticles = (x: number, y: number, colors: string[], count: number) => {
+      for(let i=0; i<count; i++) {
+        particlesRef.current.push({
+          x, y,
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.5) * 8 - 2,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          alpha: 1,
+          life: 20 + Math.random() * 10
+        });
+      }
     };
 
     const gameLoop = () => {
-      if (!isPlaying) return;
-      if (isGameOver) return;
-
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBackground();
 
-      // Background
-      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      gradient.addColorStop(0, '#B8D4E8');
-      gradient.addColorStop(1, '#E8F4F8');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Ground
-      ctx.fillStyle = '#4A7C59';
-      ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
-      ctx.fillStyle = '#659D74';
-      ctx.fillRect(0, canvas.height - groundHeight, canvas.width, 10);
-
-      // Physics
-      bramble.velocity += bramble.gravity;
-      bramble.y += bramble.velocity;
-
-      if (bramble.y >= canvas.height - groundHeight - bramble.height) {
-        bramble.y = canvas.height - groundHeight - bramble.height;
-        bramble.velocity = 0;
-        bramble.isGrounded = true;
+      if (gameStateRef.current === 'idle') {
+        drawBramble(canvas.width/2, canvas.height - groundHeight - brambleRadius, 0);
+        
+        ctx.fillStyle = '#FFF';
+        ctx.font = 'bold 32px Fredoka';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+        ctx.shadowBlur = 4;
+        const bounce = Math.sin(Date.now() / 200) * 10;
+        ctx.fillText('Tap or Press Space to Start', canvas.width/2, canvas.height/2 - 40 + bounce);
+        ctx.shadowBlur = 0;
+        
+        animIdRef.current = requestAnimationFrame(gameLoop);
+        return;
       }
 
-      // Spawning
-      frames++;
-      if (frames % 100 === 0) {
-        speed += 0.1;
-      }
+      const b = brambleRef.current;
 
-      if (frames % 120 === 0 || (frames % 80 === 0 && Math.random() > 0.5)) {
-        if (Math.random() > 0.4) {
-          obstacles.push({
+      if (gameStateRef.current === 'playing') {
+        frameRef.current++;
+        scrollOffsetRef.current += speedRef.current;
+
+        // Physics
+        b.vy += 0.55; // gravity
+        b.y += b.vy;
+        
+        const groundY = canvas.height - groundHeight - brambleRadius;
+        if (b.y >= groundY) {
+          b.y = groundY;
+          b.vy = 0;
+          b.grounded = true;
+        } else {
+          b.grounded = false;
+        }
+
+        b.rotation += speedRef.current * (b.grounded ? 0.05 : 0.08);
+
+        // Speed up
+        if (frameRef.current % 150 === 0 && speedRef.current < 12) {
+          speedRef.current += 0.15;
+        }
+
+        // Spawning Flowers
+        if (frameRef.current % 80 === 0) {
+          flowersRef.current.push({
             x: canvas.width,
-            y: canvas.height - groundHeight - 30,
-            width: 30,
-            height: 30
+            y: canvas.height - groundHeight - 50 - Math.random() * 80,
+            phase: Math.random() * Math.PI * 2
           });
         }
-      }
 
-      if (frames % 90 === 0) {
-        flowers.push({
-          x: canvas.width,
-          y: canvas.height - groundHeight - 80 - Math.random() * 40,
-          width: 20,
-          height: 20,
-          collected: false
-        });
-      }
+        // Spawning Obstacles
+        if (frameRef.current % 140 === 0) { // simplified cooldown
+          const lastObs = obstaclesRef.current[obstaclesRef.current.length - 1];
+          if (!lastObs || (canvas.width - lastObs.x > 300)) {
+            const isBig = Math.random() > 0.6;
+            obstaclesRef.current.push({
+              x: canvas.width,
+              y: canvas.height - groundHeight - (isBig ? 60 : 45),
+              w: isBig ? 50 : 35,
+              h: isBig ? 60 : 45
+            });
+          }
+        }
 
-      // Move & Draw Flowers
-      for (let i = flowers.length - 1; i >= 0; i--) {
-        let fl = flowers[i];
-        if (!fl.collected) {
-          fl.x -= speed;
+        // Update & Draw Flowers
+        for (let i = flowersRef.current.length - 1; i >= 0; i--) {
+          const fl = flowersRef.current[i];
+          fl.x -= speedRef.current;
           drawFlower(fl);
 
           // Collision
-          if (
-            bramble.x < fl.x + fl.width &&
-            bramble.x + bramble.width > fl.x &&
-            bramble.y < fl.y + fl.height &&
-            bramble.y + bramble.height > fl.y
-          ) {
-            fl.collected = true;
-            setScore(s => s + 1);
+          const dist = Math.hypot(b.x - (fl.x+10), b.y - (fl.y+10));
+          if (dist < brambleRadius + 15) {
+            spawnParticles(fl.x+10, fl.y+10, ['#FFF', '#FFD700', '#FFB6C1'], 6);
+            flowersRef.current.splice(i, 1);
+            scoreRef.current++;
+            setDisplayScore(scoreRef.current);
+          } else if (fl.x < -30) {
+            flowersRef.current.splice(i, 1);
           }
         }
-        if (fl.x + fl.width < 0) flowers.splice(i, 1);
-      }
 
-      // Move & Draw Obstacles
-      for (let i = obstacles.length - 1; i >= 0; i--) {
-        let obs = obstacles[i];
-        obs.x -= speed;
-        drawObstacle(obs);
+        // Update & Draw Obstacles
+        for (let i = obstaclesRef.current.length - 1; i >= 0; i--) {
+          const obs = obstaclesRef.current[i];
+          obs.x -= speedRef.current;
+          drawObstacle(obs);
 
-        // Collision (smaller hitbox for fairness)
-        let bHit = { x: bramble.x + 5, y: bramble.y + 5, w: bramble.width - 10, h: bramble.height - 10 };
-        let oHit = { x: obs.x + 5, y: obs.y + 5, w: obs.width - 10, h: obs.height - 10 };
+          // Collision (circle vs rect)
+          const testX = Math.max(obs.x + 5, Math.min(b.x, obs.x + obs.w - 5));
+          const testY = Math.max(obs.y + 5, Math.min(b.y, obs.y + obs.h - 5));
+          const dist = Math.hypot(b.x - testX, b.y - testY);
 
-        if (
-          bHit.x < oHit.x + oHit.w &&
-          bHit.x + bHit.w > oHit.x &&
-          bHit.y < oHit.y + oHit.h &&
-          bHit.y + bHit.h > oHit.y
-        ) {
-          setIsGameOver(true);
+          if (dist < brambleRadius - 4) {
+            gameStateRef.current = 'gameover';
+            spawnParticles(b.x, b.y, ['#A0522D', '#5C3317', '#E8651A'], 8);
+            setTimeout(() => setDisplayState('gameover'), 500);
+            
+            if (scoreRef.current > highScoreRef.current) {
+              highScoreRef.current = scoreRef.current;
+              setDisplayHigh(scoreRef.current);
+              localStorage.setItem('bramble_high_score', scoreRef.current.toString());
+            }
+          }
+
+          if (obs.x < -100) obstaclesRef.current.splice(i, 1);
         }
-
-        if (obs.x + obs.width < 0) obstacles.splice(i, 1);
+      } else if (gameStateRef.current === 'gameover') {
+        // Just draw everything frozen
+        flowersRef.current.forEach(drawFlower);
+        obstaclesRef.current.forEach(drawObstacle);
       }
 
-      drawBramble(bramble.x, bramble.y);
+      // Draw Particles
+      for (let i = particlesRef.current.length - 1; i >= 0; i--) {
+        const p = particlesRef.current[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 1 / p.life;
+        if (p.alpha <= 0) {
+          particlesRef.current.splice(i, 1);
+          continue;
+        }
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      drawBramble(b.x, b.y, b.rotation);
 
       // HUD
-      ctx.fillStyle = '#3D2817';
-      ctx.font = '20px Fredoka';
-      ctx.fillText(`Score: ${score}`, 20, 30);
-      ctx.fillText(`High Score: ${Math.max(score, highScore)}`, 20, 60);
+      if (gameStateRef.current === 'playing' || gameStateRef.current === 'gameover') {
+        ctx.fillStyle = '#FFF';
+        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+        ctx.shadowBlur = 4;
+        ctx.textAlign = 'left';
+        
+        ctx.font = 'bold 22px Fredoka';
+        ctx.fillText(`🌼 ${scoreRef.current}`, 20, 40);
+        
+        ctx.textAlign = 'right';
+        ctx.fillText(`⭐ ${Math.max(scoreRef.current, highScoreRef.current)}`, canvas.width - 20, 40);
+        ctx.shadowBlur = 0;
+      }
 
-      animationId = requestAnimationFrame(gameLoop);
+      animIdRef.current = requestAnimationFrame(gameLoop);
     };
 
-    if (isPlaying && !isGameOver) {
-      animationId = requestAnimationFrame(gameLoop);
-    }
+    animIdRef.current = requestAnimationFrame(gameLoop);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       canvas.removeEventListener('touchstart', handleTouch);
       canvas.removeEventListener('mousedown', handleTouch);
-      cancelAnimationFrame(animationId);
+      window.removeEventListener('resize', resizeCanvas);
+      cancelAnimationFrame(animIdRef.current);
     };
-  }, [isPlaying, isGameOver, score, highScore]);
-
-  useEffect(() => {
-    if (isGameOver) {
-      if (score > highScore) {
-        setHighScore(score);
-        localStorage.setItem('bramble_high_score', score.toString());
-      }
-    }
-  }, [isGameOver, score, highScore]);
-
-  const startGame = () => {
-    setScore(0);
-    setIsGameOver(false);
-    setIsPlaying(true);
-  };
+  }, []);
 
   const getShareText = () => {
-    if (score >= 30) return `Bramble's on a roll! Collected ${score} flowers and dodged all the foxes. Beat my score → bramble.top`;
-    if (score >= 15) return `Running through Sunbell Meadow with Bramble! ${score} flowers collected. Can you beat that? → bramble.top`;
-    return `Just started my Bramble adventure! ${score} flowers collected so far. This hedgehog is unstoppable → bramble.top`;
+    const s = scoreRef.current;
+    if (s >= 30) return `Bramble's on a roll! Grabbed ${s} flowers and left every fox in the dust. Beat that → bramble.top`;
+    if (s >= 15) return `Running wild through Sunbell Meadow with Bramble! ${s} flowers down. Think you can do better? → bramble.top`;
+    return `Okay so Bramble got ${s} flowers before a fox ruined everything. Not my fault. → bramble.top`;
+  };
+
+  const handleShare = () => {
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(getShareText())}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const handlePlayAgain = () => {
+    setDisplayState('playing');
+    gameStateRef.current = 'playing';
+    // The jump handler actually handles reset if game is over
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto relative rounded-2xl overflow-hidden shadow-xl border-4 border-white/50">
+    <div className="w-full max-w-4xl mx-auto relative rounded-3xl overflow-hidden border-4 border-[#D4A574] shadow-[0_0_40px_rgba(212,165,116,0.4)] bg-[#1a2f1e]">
       <canvas 
         ref={canvasRef} 
-        width={800} 
-        height={400} 
-        className="w-full h-auto bg-muted block touch-none cursor-pointer"
+        height={380} 
+        className="w-full block touch-none cursor-pointer"
         data-testid="game-canvas"
       />
       
-      {!isPlaying && !isGameOver && (
-        <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center backdrop-blur-sm">
-          <Button onClick={startGame} size="lg" className="text-xl px-8 rounded-full shadow-lg" data-testid="button-start-game">
-            Play Now
-          </Button>
-        </div>
-      )}
+      {/* Grass strip at bottom inside wrapper */}
+      <div className="absolute bottom-0 left-0 w-full h-4 opacity-80 pointer-events-none overflow-hidden">
+        <svg viewBox="0 0 300 10" preserveAspectRatio="none" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0 10 Q10 0 20 10 Q30 0 40 10 Q50 0 60 10 Q70 0 80 10 Q90 0 100 10 Q110 0 120 10 Q130 0 140 10 Q150 0 160 10 Q170 0 180 10 Q190 0 200 10 Q210 0 220 10 Q230 0 240 10 Q250 0 260 10 Q270 0 280 10 Q290 0 300 10 Z" fill="#4A7C59"/>
+        </svg>
+      </div>
 
-      {isGameOver && (
-        <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center backdrop-blur-sm text-white">
-          <h3 className="text-4xl font-bold text-white mb-2 shadow-sm drop-shadow-md">Game Over!</h3>
-          <p className="text-xl mb-1">Score: {score}</p>
-          <p className="text-lg mb-6 text-white/80">High Score: {highScore}</p>
+      {displayState === 'gameover' && (
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center text-white z-10">
+          <h3 className="text-4xl font-bold text-[#D4A574] mb-4 shadow-sm drop-shadow-lg text-center px-4">Oh no! A fox got Bramble!</h3>
+          
+          <div className="flex gap-8 mb-8 text-center">
+            <div>
+              <p className="text-sm text-white/70 uppercase tracking-widest mb-1">Flowers</p>
+              <p className="text-3xl font-bold">🌼 {displayScore}</p>
+            </div>
+            <div>
+              <p className="text-sm text-white/70 uppercase tracking-widest mb-1">Best</p>
+              <p className="text-3xl font-bold text-white/90">⭐ {displayHigh}</p>
+            </div>
+          </div>
+
           <div className="flex gap-4">
-            <Button onClick={startGame} variant="secondary" className="rounded-full px-6 text-lg" data-testid="button-play-again">
-              Play Again
+            <Button onClick={handlePlayAgain} className="rounded-full px-8 py-6 text-lg font-bold bg-[#D4A574] text-[#3D2817] hover:bg-[#c29668] hover:scale-105 transition-all shadow-xl" data-testid="button-play-again">
+              Run Again
             </Button>
             <Button 
-              onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(getShareText())}`, '_blank')}
-              className="rounded-full px-6 bg-black text-white hover:bg-black/80 flex items-center gap-2"
+              onClick={handleShare}
+              className="rounded-full px-8 py-6 text-lg font-bold bg-black text-white hover:bg-black/80 hover:scale-105 transition-all shadow-xl flex items-center gap-2"
               data-testid="button-share-x"
             >
-              <SiX /> Share
+              <SiX /> Brag on X
             </Button>
           </div>
         </div>
       )}
-      <div className="absolute bottom-4 left-0 w-full text-center pointer-events-none">
-        <p className="text-white/80 text-sm font-medium drop-shadow-md">Press SPACE to jump — Tap the screen on mobile</p>
-      </div>
     </div>
   );
 }

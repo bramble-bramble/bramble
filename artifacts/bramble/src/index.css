@@ -125,11 +125,76 @@
   }
   body {
     @apply font-sans antialiased bg-background text-foreground overflow-x-hidden;
-    background: linear-gradient(180deg, hsl(205 50% 82%) 0%, hsl(33 56% 89%) 100%);
+    background: linear-gradient(160deg, #87CEEB 0%, #B8D4E8 30%, #D4E8C2 60%, #F5E6D3 100%);
     min-height: 100vh;
   }
 }
 
 html {
   scroll-behavior: smooth;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(-2deg); }
+  50% { transform: translateY(-12px) rotate(2deg); }
+}
+@keyframes sway {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+@keyframes bounce-gentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(212,165,116,0.4); }
+  50% { box-shadow: 0 0 25px rgba(212,165,116,0.8), 0 0 40px rgba(212,165,116,0.3); }
+}
+@keyframes petal-fall {
+  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-5deg); }
+  75% { transform: rotate(5deg); }
+}
+@keyframes sun-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes grass-sway {
+  0%, 100% { transform: skewX(-3deg) scaleY(1); }
+  50% { transform: skewX(3deg) scaleY(0.97); }
+}
+
+.animate-float { animation: float 3s ease-in-out infinite; }
+.animate-sway { animation: sway 2s ease-in-out infinite; }
+.animate-bounce-gentle { animation: bounce-gentle 2s ease-in-out infinite; }
+.animate-spin-slow { animation: spin-slow 8s linear infinite; }
+.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+.animate-wiggle { animation: wiggle 0.5s ease-in-out; }
+.animate-sun-rotate { animation: sun-rotate 20s linear infinite; }
+
+.shimmer-text {
+  background: linear-gradient(90deg, #3D2817 0%, #D4A574 30%, #4A7C59 60%, #3D2817 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 4s linear infinite;
+}
+
+/* Custom hover cursors for interactive elements */
+a, button, [role="button"] {
+  cursor: pointer;
+  transition: cursor 0.2s;
 }
