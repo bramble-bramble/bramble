@@ -1,0 +1,14 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "R_-GbyZmnUT8VftYH3xYs"
+uri = "file://artifacts/bramble/public/bramble-hero.png"
+type = "image"
+title = "Bramble hedgehog in sunlit meadow"
+
+[[generated]]
+id = "s-cF8bG2tHO4CtyWvuz-L"
+uri = "file://artifacts/bramble/public/bramble-ball.png"
+type = "image"
+title = "Bramble hedgehog rolled in ball"
