@@ -2,9 +2,11 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { SiX } from 'react-icons/si';
 
-interface MiniGameProps {}
+interface MiniGameProps {
+  onScoreUpdate?: (score: number, high: number) => void;
+}
 
-export default function MiniGame({}: MiniGameProps) {
+export default function MiniGame({ onScoreUpdate }: MiniGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Game state refs
@@ -21,6 +23,9 @@ export default function MiniGame({}: MiniGameProps) {
   const animIdRef = useRef<number>(0);
   const canDoubleJumpRef = useRef(false);
   const scrollOffsetRef = useRef(0);
+  
+  const resetGameRef = useRef<() => void>(() => {});
+  const milestoneRef = useRef({ shown: -1, text: '', alpha: 0 });
 
   // React state ONLY for overlay
   const [displayState, setDisplayState] = useState<'idle'|'playing'|'gameover'>('idle');
@@ -33,8 +38,9 @@ export default function MiniGame({}: MiniGameProps) {
       const high = parseInt(saved, 10);
       highScoreRef.current = high;
       setDisplayHigh(high);
+      onScoreUpdate?.(0, high);
     }
-  }, []);
+  }, [onScoreUpdate]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -65,6 +71,7 @@ export default function MiniGame({}: MiniGameProps) {
     const resetGame = () => {
       scoreRef.current = 0;
       setDisplayScore(0);
+      onScoreUpdate?.(0, highScoreRef.current);
       gameStateRef.current = 'playing';
       setDisplayState('playing');
       brambleRef.current = { 
@@ -80,7 +87,10 @@ export default function MiniGame({}: MiniGameProps) {
       frameRef.current = 0;
       speedRef.current = 4;
       scrollOffsetRef.current = 0;
+      milestoneRef.current = { shown: -1, text: '', alpha: 0 };
     };
+    
+    resetGameRef.current = resetGame;
 
     const jump = () => {
       if (gameStateRef.current === 'idle') {
@@ -168,8 +178,8 @@ export default function MiniGame({}: MiniGameProps) {
     };
 
     const drawObstacle = (obs: any) => {
-      const { x, y, w, h } = obs;
-      ctx.fillStyle = '#E8651A';
+      const { x, y, w, h, color } = obs;
+      ctx.fillStyle = color || '#E8651A';
       ctx.beginPath();
       ctx.roundRect(x, y, w, h, [10, 10, 0, 0]);
       ctx.fill();
@@ -199,7 +209,7 @@ export default function MiniGame({}: MiniGameProps) {
       ctx.fill();
       
       // Tail
-      ctx.fillStyle = '#E8651A';
+      ctx.fillStyle = color || '#E8651A';
       ctx.beginPath();
       ctx.arc(x + w, y + h - 15, 10, Math.PI/2, Math.PI*1.5);
       ctx.fill();
@@ -281,6 +291,17 @@ export default function MiniGame({}: MiniGameProps) {
         const xPos = i - (scrollOffsetRef.current % 15);
         ctx.fillRect(xPos, canvas.height - groundHeight, 3, 10);
       }
+      
+      // Ground pebbles
+      ctx.fillStyle = '#1a3d2b';
+      for(let i=0; i<8; i++) {
+        const spacing = canvas.width / 8;
+        const xPos = ((i * spacing) - scrollOffsetRef.current) % canvas.width;
+        const adjustedX = xPos < 0 ? xPos + canvas.width : xPos;
+        ctx.beginPath();
+        ctx.arc(adjustedX, canvas.height - groundHeight / 2 + Math.sin(i)*10, 3, 0, Math.PI*2);
+        ctx.fill();
+      }
     };
 
     const spawnParticles = (x: number, y: number, colors: string[], count: number) => {
@@ -296,6 +317,16 @@ export default function MiniGame({}: MiniGameProps) {
       }
     };
 
+    const getMilestoneMessage = (speed: number) => {
+      if (speed >= 10) return "MAXIMUM FLOOF SPEED!";
+      if (speed >= 9) return "Bramble is ROLLING!";
+      if (speed >= 8) return "This is getting intense!";
+      if (speed >= 7) return "Uh oh, foxes are faster!";
+      if (speed >= 6) return "Bramble's picking up speed!";
+      if (speed >= 5) return "Getting warmer...";
+      return "";
+    };
+
     const gameLoop = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawBackground();
@@ -308,8 +339,13 @@ export default function MiniGame({}: MiniGameProps) {
         ctx.textAlign = 'center';
         ctx.shadowColor = 'rgba(0,0,0,0.4)';
         ctx.shadowBlur = 4;
-        const bounce = Math.sin(Date.now() / 200) * 10;
+        const bounce = Math.sin(Date.now() / 300) * 8;
         ctx.fillText('Tap or Press Space to Start', canvas.width/2, canvas.height/2 - 40 + bounce);
+        
+        ctx.font = 'bold 20px Fredoka';
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.fillText('Double-tap to double jump!', canvas.width/2, canvas.height/2 + bounce);
+        
         ctx.shadowBlur = 0;
         
         animIdRef.current = requestAnimationFrame(gameLoop);
@@ -336,10 +372,29 @@ export default function MiniGame({}: MiniGameProps) {
         }
 
         b.rotation += speedRef.current * (b.grounded ? 0.05 : 0.08);
+        
+        // Star trail
+        if (!b.grounded && frameRef.current % 3 === 0) {
+          particlesRef.current.push({
+            x: b.x, y: b.y,
+            vx: -speedRef.current * 0.5, vy: 0,
+            color: 'rgba(245, 230, 211, 0.6)',
+            alpha: 1,
+            life: 10
+          });
+        }
 
         // Speed up
         if (frameRef.current % 150 === 0 && speedRef.current < 12) {
           speedRef.current += 0.15;
+          const currentIntSpeed = Math.floor(speedRef.current);
+          if (currentIntSpeed > milestoneRef.current.shown && currentIntSpeed >= 5) {
+            milestoneRef.current = {
+              shown: currentIntSpeed,
+              text: getMilestoneMessage(currentIntSpeed),
+              alpha: 1
+            };
+          }
         }
 
         // Spawning Flowers
@@ -356,11 +411,13 @@ export default function MiniGame({}: MiniGameProps) {
           const lastObs = obstaclesRef.current[obstaclesRef.current.length - 1];
           if (!lastObs || (canvas.width - lastObs.x > 300)) {
             const isBig = Math.random() > 0.6;
+            const colors = ['#E8651A', '#CC4400', '#FF7722'];
             obstaclesRef.current.push({
               x: canvas.width,
               y: canvas.height - groundHeight - (isBig ? 60 : 45),
               w: isBig ? 50 : 35,
-              h: isBig ? 60 : 45
+              h: isBig ? 60 : 45,
+              color: colors[Math.floor(Math.random() * colors.length)]
             });
           }
         }
@@ -378,6 +435,7 @@ export default function MiniGame({}: MiniGameProps) {
             flowersRef.current.splice(i, 1);
             scoreRef.current++;
             setDisplayScore(scoreRef.current);
+            onScoreUpdate?.(scoreRef.current, highScoreRef.current);
           } else if (fl.x < -30) {
             flowersRef.current.splice(i, 1);
           }
@@ -403,6 +461,7 @@ export default function MiniGame({}: MiniGameProps) {
               highScoreRef.current = scoreRef.current;
               setDisplayHigh(scoreRef.current);
               localStorage.setItem('bramble_high_score', scoreRef.current.toString());
+              onScoreUpdate?.(scoreRef.current, scoreRef.current);
             }
           }
 
@@ -433,20 +492,19 @@ export default function MiniGame({}: MiniGameProps) {
       }
 
       drawBramble(b.x, b.y, b.rotation);
-
-      // HUD
-      if (gameStateRef.current === 'playing' || gameStateRef.current === 'gameover') {
+      
+      // Draw Milestone text
+      if (milestoneRef.current.alpha > 0) {
+        ctx.save();
+        ctx.globalAlpha = milestoneRef.current.alpha;
         ctx.fillStyle = '#FFF';
-        ctx.shadowColor = 'rgba(0,0,0,0.4)';
-        ctx.shadowBlur = 4;
-        ctx.textAlign = 'left';
-        
-        ctx.font = 'bold 22px Fredoka';
-        ctx.fillText(`🌼 ${scoreRef.current}`, 20, 40);
-        
-        ctx.textAlign = 'right';
-        ctx.fillText(`⭐ ${Math.max(scoreRef.current, highScoreRef.current)}`, canvas.width - 20, 40);
-        ctx.shadowBlur = 0;
+        ctx.font = 'bold 36px Fredoka';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 8;
+        ctx.fillText(milestoneRef.current.text, canvas.width/2, canvas.height/3);
+        ctx.restore();
+        milestoneRef.current.alpha -= 0.01;
       }
 
       animIdRef.current = requestAnimationFrame(gameLoop);
@@ -461,7 +519,7 @@ export default function MiniGame({}: MiniGameProps) {
       window.removeEventListener('resize', resizeCanvas);
       cancelAnimationFrame(animIdRef.current);
     };
-  }, []);
+  }, [onScoreUpdate]);
 
   const getShareText = () => {
     const s = scoreRef.current;
@@ -475,9 +533,7 @@ export default function MiniGame({}: MiniGameProps) {
   };
 
   const handlePlayAgain = () => {
-    setDisplayState('playing');
-    gameStateRef.current = 'playing';
-    // The jump handler actually handles reset if game is over
+    resetGameRef.current();
   };
 
   return (
@@ -512,12 +568,12 @@ export default function MiniGame({}: MiniGameProps) {
           </div>
 
           <div className="flex gap-4">
-            <Button onClick={handlePlayAgain} className="rounded-full px-8 py-6 text-lg font-bold bg-[#D4A574] text-[#3D2817] hover:bg-[#c29668] hover:scale-105 transition-all shadow-xl" data-testid="button-play-again">
+            <Button onClick={handlePlayAgain} className="active:scale-95 transition-transform rounded-full px-8 py-6 text-lg font-bold bg-[#D4A574] text-[#3D2817] hover:bg-[#c29668] hover:scale-105 shadow-xl" data-testid="button-play-again">
               Run Again
             </Button>
             <Button 
               onClick={handleShare}
-              className="rounded-full px-8 py-6 text-lg font-bold bg-black text-white hover:bg-black/80 hover:scale-105 transition-all shadow-xl flex items-center gap-2"
+              className="active:scale-95 transition-transform rounded-full px-8 py-6 text-lg font-bold bg-black text-white hover:bg-black/80 hover:scale-105 shadow-xl flex items-center gap-2"
               data-testid="button-share-x"
             >
               <SiX /> Brag on X

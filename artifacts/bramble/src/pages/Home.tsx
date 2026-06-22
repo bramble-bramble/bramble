@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Copy, Menu, X as CloseIcon, Check, ArrowUp, Lock, Sprout, Flower2, ShoppingBasket, Star, Flame, BarChart2, Orbit, Trophy } from "lucide-react";
+import { Copy, Menu, X as CloseIcon, Check, ArrowUp, Lock, Sprout, Flower2, ShoppingBasket, Star, Flame, BarChart2, Orbit, Trophy, ChevronDown, Book, ChevronRight } from "lucide-react";
 import { SiX, SiTelegram } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -42,6 +42,8 @@ export default function Home() {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [highScore, setHighScore] = useState(0);
+  const [chartLoaded, setChartLoaded] = useState(false);
+  const [gameScore, setGameScore] = useState({ current: 0, high: 0 });
 
   const CA = "4JPJLi59XP3NipggvjpdYTPPkSNK65rHjtAQren3pump";
 
@@ -56,7 +58,11 @@ export default function Home() {
     window.addEventListener('scroll', handleScroll);
     
     const saved = localStorage.getItem('bramble_high_score');
-    if (saved) setHighScore(parseInt(saved, 10));
+    if (saved) {
+      const parsed = parseInt(saved, 10);
+      setHighScore(parsed);
+      setGameScore(prev => ({ ...prev, high: parsed }));
+    }
 
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -99,6 +105,15 @@ export default function Home() {
     whileInView: { opacity: 1, y: 0 },
     transition: { duration: 0.5, ease: "easeOut" as const }
   };
+  
+  const cardFlip = {
+    initial: { opacity: 0, rotateX: -15, y: 40, scale: 0.95 },
+    whileInView: { opacity: 1, rotateX: 0, y: 0, scale: 1 },
+    viewport: { once: true },
+    transition: { duration: 0.6, ease: "easeOut" as const }
+  };
+
+  const tagline = "A tiny hedgehog with a bouquet, a big heart, and a whole meadow of holders behind him.";
 
   return (
     <div className="min-h-screen relative font-sans text-foreground">
@@ -111,24 +126,27 @@ export default function Home() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 w-full z-50 bg-gradient-to-r from-[#4A7C59]/90 to-[#3d6b47]/90 backdrop-blur-md shadow-sm transition-all duration-300">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="font-bold text-2xl tracking-tight text-white cursor-pointer flex items-center gap-2 group" onClick={() => scrollTo('hero')}>
-            $BRAMBLE
-            <svg className="w-5 h-5 text-yellow-300 animate-spin-slow group-hover:animate-bounce-gentle" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" opacity="0.3"/>
-              <circle cx="12" cy="12" r="4" fill="#FFD700" />
-            </svg>
+          <div className="flex flex-col">
+            <div className="font-bold text-2xl tracking-tight text-white cursor-pointer flex items-center gap-2 group" onClick={() => scrollTo('hero')}>
+              $BRAMBLE
+              <svg className="w-5 h-5 text-yellow-300 animate-spin-slow group-hover:animate-bounce-gentle" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" opacity="0.3"/>
+                <circle cx="12" cy="12" r="4" fill="#FFD700" />
+              </svg>
+            </div>
+            <span className="hidden md:block text-white/40 text-[10px] tracking-widest uppercase">Sunbell Meadow</span>
           </div>
           
           {/* Desktop Nav */}
           <div className="hidden md:flex gap-8 items-center">
             {['About', 'Roadmap', 'Community'].map((item) => (
-              <button key={item} onClick={() => scrollTo(item.toLowerCase())} className="text-white/90 hover:text-[#FFD700] transition-colors font-medium group relative flex items-center gap-1">
+              <button key={item} onClick={() => scrollTo(item.toLowerCase())} className="text-white/90 hover:text-[#FFD700] transition-colors font-medium group relative flex items-center gap-1 active:scale-95">
                 <Flower2 className="w-3 h-3 opacity-0 group-hover:opacity-100 group-hover:animate-bounce transition-all absolute -left-4" />
                 {item}
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#FFD700] transition-all duration-300 group-hover:w-full" />
               </button>
             ))}
-            <button onClick={() => scrollTo('play')} className="text-white/90 hover:text-[#FFD700] transition-colors font-medium group relative flex items-center gap-1">
+            <button onClick={() => scrollTo('play')} className="text-white/90 hover:text-[#FFD700] transition-colors font-medium group relative flex items-center gap-1 active:scale-95">
               <Flower2 className="w-3 h-3 opacity-0 group-hover:opacity-100 group-hover:animate-bounce transition-all absolute -left-4" />
               Play
               <span className="ml-1 flex h-2 w-2">
@@ -138,7 +156,7 @@ export default function Home() {
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#FFD700] transition-all duration-300 group-hover:w-full" />
             </button>
 
-            <Button className="rounded-full font-bold bg-[#D4A574] text-[#3D2817] hover:bg-[#D4A574]/90 animate-pulse-glow hover:scale-110 transition-transform shadow-md" asChild>
+            <Button className="active:scale-95 rounded-full font-bold bg-[#D4A574] text-[#3D2817] hover:bg-[#D4A574]/90 animate-pulse-glow hover:scale-110 transition-transform shadow-md" asChild>
               <a href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=4JPJLi59XP3NipggvjpdYTPPkSNK65rHjtAQren3pump" target="_blank" rel="noopener noreferrer">
                 BUY $BRAMBLE
               </a>
@@ -146,7 +164,7 @@ export default function Home() {
           </div>
 
           {/* Mobile Toggle */}
-          <button className="md:hidden p-2 text-white" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+          <button className="md:hidden p-2 text-white active:scale-95 transition-transform" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
             {mobileMenuOpen ? <CloseIcon /> : <Menu />}
           </button>
         </div>
@@ -168,7 +186,7 @@ export default function Home() {
                     animate={{ x: 0, opacity: 1 }}
                     transition={{ delay: i * 0.1 }}
                     onClick={() => scrollTo(item.toLowerCase())} 
-                    className="text-left text-lg font-medium p-2 text-white hover:bg-white/10 rounded-lg flex items-center gap-2"
+                    className="active:scale-95 text-left text-lg font-medium p-2 text-white hover:bg-white/10 rounded-lg flex items-center gap-2 transition-transform"
                   >
                     <Flower2 className="w-4 h-4 text-[#FFD700]" />
                     {item}
@@ -220,9 +238,23 @@ export default function Home() {
                 <span className="text-green-800 font-bold tracking-widest text-sm uppercase">Welcome to Sunbell Meadow</span>
               </div>
               <h1 className="text-7xl md:text-9xl font-bold mb-4 leading-none shimmer-text pb-2">Bramble</h1>
-              <p className="text-xl md:text-2xl text-[#3D2817] mb-2 max-w-md font-medium leading-relaxed">
-                A tiny hedgehog with a bouquet, a big heart, and a whole meadow of holders behind him.
-              </p>
+              <motion.p 
+                className="text-xl md:text-2xl text-[#3D2817] mb-2 max-w-md font-medium leading-relaxed min-h-[3.5rem]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                {tagline.split('').map((char, i) => (
+                  <motion.span
+                    key={i}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.6 + i * 0.018, duration: 0.1 }}
+                  >
+                    {char}
+                  </motion.span>
+                ))}
+              </motion.p>
               <p className="text-sm italic text-[#3D2817]/70 mb-8 flex items-center gap-2">
                 Not a scam. Just a hedgehog. 
                 <svg className="w-4 h-4 text-[#D4A574]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -234,7 +266,7 @@ export default function Home() {
               </p>
 
               <div className="flex flex-wrap gap-3 justify-center md:justify-start mb-10 w-full">
-                <Button size="lg" className="rounded-full font-bold text-lg px-8 bg-[#D4A574] text-[#3D2817] hover:bg-[#c29668] animate-pulse-glow shadow-xl hover:scale-105 transition-all border-4 border-white group" asChild data-testid="button-buy-hero">
+                <Button size="lg" className="active:scale-95 rounded-full font-bold text-lg px-8 bg-[#D4A574] text-[#3D2817] hover:bg-[#c29668] animate-pulse-glow shadow-xl hover:scale-105 transition-all border-4 border-white group" asChild data-testid="button-buy-hero">
                   <a href="https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=4JPJLi59XP3NipggvjpdYTPPkSNK65rHjtAQren3pump" target="_blank" rel="noopener noreferrer">
                     <Flower2 className="w-5 h-5 mr-2 group-hover:animate-spin-slow" />
                     BUY $BRAMBLE
@@ -243,7 +275,7 @@ export default function Home() {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button size="lg" variant="outline" className="rounded-full bg-black text-white hover:bg-gray-800 border-none shadow-lg hover:scale-105 transition-all" asChild data-testid="link-x-hero">
+                      <Button size="lg" variant="outline" className="active:scale-95 rounded-full bg-black text-white hover:bg-gray-800 border-none shadow-lg hover:scale-105 transition-all" asChild data-testid="link-x-hero">
                         <a href="https://x.com/bramblelxg" target="_blank" rel="noopener noreferrer"><SiX className="w-5 h-5 mr-2" /> X</a>
                       </Button>
                     </TooltipTrigger>
@@ -251,7 +283,7 @@ export default function Home() {
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button size="lg" variant="outline" className="rounded-full bg-[#229ED9] text-white hover:bg-[#1d8fc4] border-none shadow-lg hover:scale-105 transition-all" asChild data-testid="link-tg-hero">
+                      <Button size="lg" variant="outline" className="active:scale-95 rounded-full bg-[#229ED9] text-white hover:bg-[#1d8fc4] border-none shadow-lg hover:scale-105 transition-all" asChild data-testid="link-tg-hero">
                         <a href="https://t.me/brambletop" target="_blank" rel="noopener noreferrer"><SiTelegram className="w-5 h-5 mr-2" /> Telegram</a>
                       </Button>
                     </TooltipTrigger>
@@ -259,7 +291,7 @@ export default function Home() {
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button size="lg" variant="outline" className="rounded-full bg-[#2d5a3f] text-white hover:bg-[#234731] border-none shadow-lg hover:scale-105 transition-all font-bold" asChild data-testid="link-dex-hero">
+                      <Button size="lg" variant="outline" className="active:scale-95 rounded-full bg-[#2d5a3f] text-white hover:bg-[#234731] border-none shadow-lg hover:scale-105 transition-all font-bold" asChild data-testid="link-dex-hero">
                         <a href="https://dexscreener.com/solana/4JPJLi59XP3NipggvjpdYTPPkSNK65rHjtAQren3pump" target="_blank" rel="noopener noreferrer">
                           <BarChart2 className="w-5 h-5 mr-2" /> DEX
                         </a>
@@ -295,12 +327,23 @@ export default function Home() {
                 <div className="relative flex items-center gap-2 bg-white/70 backdrop-blur-md px-5 py-3 rounded-2xl border border-white shadow-md overflow-hidden z-10">
                   <Lock className="w-4 h-4 text-[#4A7C59] shrink-0" />
                   <span className="text-sm font-bold text-[#3D2817] shrink-0">CA:</span>
-                  <span className="text-sm font-mono truncate text-[#3D2817] max-w-[150px] sm:max-w-xs">{CA}</span>
-                  <button onClick={copyToClipboard} className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-all shrink-0 ml-auto shadow-sm" data-testid="button-copy-ca">
+                  <span className="text-sm font-mono text-[#3D2817] hidden sm:inline">{CA}</span>
+                  <span className="text-sm font-mono text-[#3D2817] sm:hidden">{CA.slice(0,6)}...{CA.slice(-4)}</span>
+                  <button onClick={copyToClipboard} className="active:scale-95 p-2 bg-white rounded-lg hover:bg-gray-100 transition-all shrink-0 ml-auto shadow-sm" data-testid="button-copy-ca">
                     {copied ? <Check className="w-4 h-4 text-green-600 animate-wiggle" /> : <Copy className="w-4 h-4 text-[#3D2817]" />}
                   </button>
                 </div>
               </div>
+              
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 2, duration: 1 }}
+                className="flex flex-col items-center justify-center mt-12 text-[#3D2817]/50 text-xs"
+              >
+                <span className="mb-2">Scroll to explore</span>
+                <ChevronDown className="w-4 h-4 animate-bounce" />
+              </motion.div>
             </motion.div>
 
             <motion.div 
@@ -363,7 +406,9 @@ export default function Home() {
                 {[...Array(4)].map((_,i) => <div key={i} className="w-3 h-3 bg-[#3D2817] rounded-full rotate-45 transform translate-y-4 translate-x-2" />)}
               </div>
               
-              <div className="absolute -top-6 -left-6 bg-[#4A7C59] text-white text-xs font-bold px-3 py-1 rounded-full">01</div>
+              <div className="absolute -top-6 -left-6 bg-[#3D2817] text-[#F5E6D3] text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
+                <Book className="w-3 h-3" /> Lore
+              </div>
               <h2 className="text-5xl md:text-6xl font-bold text-[#3D2817] font-sans text-center relative z-10">
                 The Keeper of Sunbell Meadow
               </h2>
@@ -389,6 +434,12 @@ export default function Home() {
                 </p>
                 <div className="absolute -bottom-4 -right-4 w-12 h-12 bg-[#FFF8F0] rounded-full flex items-center justify-center border-4 border-white shadow-sm">
                   <Lock className="w-5 h-5 text-[#4A7C59]" />
+                </div>
+              </motion.div>
+              
+              <motion.div variants={staggerItem} className="flex justify-center my-6">
+                <div className="border-l-4 border-[#4A7C59] bg-[#4A7C59]/10 rounded-r-2xl p-6 italic text-2xl md:text-3xl text-[#3D2817] max-w-2xl text-center shadow-sm">
+                  "Nobody walks alone in Sunbell Meadow."
                 </div>
               </motion.div>
 
@@ -418,7 +469,7 @@ export default function Home() {
               <p className="text-[#3D2817]/70 italic mt-2 text-lg">The chart doesn't lie. Bramble is on the move.</p>
             </div>
 
-            <motion.div variants={staggerItem} className="relative rounded-[32px] shadow-2xl bg-white border-4 border-[#D4A574] p-1 md:p-3 overflow-hidden">
+            <motion.div variants={staggerItem} className="relative rounded-[32px] shadow-2xl bg-white border-4 border-[#D4A574] p-1 md:p-3 overflow-hidden min-h-[520px] flex items-center justify-center">
               <div className="absolute top-0 left-0 w-full h-5 z-10 overflow-hidden">
                 <svg viewBox="0 0 300 20" preserveAspectRatio="none" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
                   <path d="M0 20 Q15 0 30 20 Q45 0 60 20 Q75 0 90 20 Q105 0 120 20 Q135 0 150 20 Q165 0 180 20 Q195 0 210 20 Q225 0 240 20 Q255 0 270 20 Q285 0 300 20 Z" fill="#4A7C59"/>
@@ -430,11 +481,19 @@ export default function Home() {
               <Flower2 className="absolute bottom-1 left-1 w-6 h-6 text-[#D4A574] z-20" />
               <Flower2 className="absolute bottom-1 right-1 w-6 h-6 text-[#D4A574] z-20" />
 
-              <div className="relative pt-6 rounded-[24px] overflow-hidden bg-white">
+              {!chartLoaded && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white/50 backdrop-blur-sm">
+                  <Sprout className="w-12 h-12 text-[#4A7C59] animate-spin-slow mb-4" />
+                  <p className="text-[#3D2817] font-bold text-lg animate-pulse">Bramble is checking the charts...</p>
+                </div>
+              )}
+
+              <div className={`relative pt-6 rounded-[24px] overflow-hidden bg-white w-full transition-opacity duration-1000 ${chartLoaded ? 'opacity-100' : 'opacity-0'}`}>
                 <iframe 
                   src="https://dexscreener.com/solana/4JPJLi59XP3NipggvjpdYTPPkSNK65rHjtAQren3pump?embed=1&theme=light&trades=0&info=0" 
                   style={{ width: '100%', height: '500px', border: 'none' }}
                   title="$BRAMBLE DexScreener Chart"
+                  onLoad={() => setChartLoaded(true)}
                 />
               </div>
             </motion.div>
@@ -458,7 +517,7 @@ export default function Home() {
                <motion.h2 className="text-5xl md:text-6xl font-bold text-[#3D2817]" {...fadeIn}>From Seed to Meadow</motion.h2>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12" style={{ perspective: 1000 }}>
               {[
                 { num: "01", title: "SPROUT", bg: "from-green-50 to-emerald-100", icon: Sprout, items: ["Launch identity, lock the meadow aesthetic", "Open X, publish first meme kit", "Start holder quests"], active: true },
                 { num: "02", title: "BLOOM", bg: "from-pink-50 to-rose-100", icon: Flower2, items: ["Community raids, sticker packs", "DEX visibility, token page polish", "Daily Bramble lore drops"] },
@@ -467,10 +526,11 @@ export default function Home() {
               ].map((phase, i) => (
                 <motion.div 
                   key={phase.num} 
-                  initial={{ opacity: 0, y: 40 }}
-                  whileInView={{ opacity: 1, y: 0 }}
+                  variants={cardFlip}
+                  initial="initial"
+                  whileInView="whileInView"
                   viewport={{ once: true, margin: "-50px" }}
-                  transition={{ duration: 0.5, delay: i * 0.15 }}
+                  custom={i}
                   className="group"
                 >
                   <Card className={`bg-gradient-to-br ${phase.bg} border-4 border-white shadow-lg hover:shadow-2xl transition-all duration-300 h-full rounded-[32px] overflow-hidden relative group-hover:-translate-y-2`}>
@@ -485,9 +545,9 @@ export default function Home() {
                           Phase {phase.num}
                         </div>
                         {phase.active && (
-                          <div className="flex items-center gap-1.5 bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold">
-                            <span className="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
-                            Active
+                          <div className="bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
+                            <span className="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                            LIVE NOW
                           </div>
                         )}
                       </div>
@@ -513,50 +573,79 @@ export default function Home() {
         </section>
 
         {/* Community Section */}
-        <section id="community" className="py-32 px-4 sm:px-6 relative bg-gradient-to-br from-[#2d5a3f] to-[#1a3d2b] overflow-hidden">
-          {/* Firefly dots */}
-          {[...Array(15)].map((_, i) => (
-            <div key={i} className="absolute rounded-full bg-white animate-pulse" style={{
-              width: `${2 + Math.random() * 3}px`,
-              height: `${2 + Math.random() * 3}px`,
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-              animationDuration: `${2 + Math.random() * 4}s`,
+        <section id="community" className="py-32 px-4 sm:px-6 relative bg-gradient-to-br from-[#E8F5E9] via-[#F5E6D3] to-[#E8F5E9] overflow-hidden">
+          {/* Decorative strip top */}
+          <div className="absolute top-0 left-0 w-full flex justify-around opacity-30 py-2">
+            {[...Array(20)].map((_, i) => <Flower2 key={i} className="w-4 h-4 text-[#4A7C59]" />)}
+          </div>
+          
+          {/* Daisy dots */}
+          {[...Array(8)].map((_, i) => (
+            <svg key={i} viewBox="0 0 24 24" className="absolute text-[#4A7C59] opacity-20 animate-sway" style={{
+              width: `${12 + Math.random() * 8}px`,
+              height: `${12 + Math.random() * 8}px`,
+              top: `${10 + Math.random() * 80}%`,
+              left: `${10 + Math.random() * 80}%`,
               animationDelay: `${Math.random() * 2}s`
-            }} />
+            }}>
+              <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" opacity="0.3"/>
+              <circle cx="12" cy="12" r="4" fill="currentColor" />
+            </svg>
           ))}
 
           <motion.div className="max-w-6xl mx-auto relative z-10" variants={staggerContainer} initial="initial" whileInView="whileInView">
             <div className="text-center mb-16 relative">
-              <div className="absolute -top-6 -left-0 md:left-[35%] bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">04</div>
-              <h2 className="text-5xl md:text-6xl font-bold mb-4 text-white">Join the Meadow</h2>
-              <p className="text-xl text-white/80 italic">The community is growing. Get in before it's a forest.</p>
+              <div className="absolute -top-6 -left-0 md:left-[35%] bg-[#4A7C59] text-white text-xs font-bold px-3 py-1 rounded-full">04</div>
+              <h2 className="text-5xl md:text-6xl font-bold mb-4 text-[#3D2817]">Your Meadow Awaits</h2>
+              <p className="text-xl text-[#4A7C59]/80 italic font-medium">Jump in. The grass is definitely greener over here.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               {[
-                { name: "PumpFun", desc: "Buy on Pump.fun", url: "https://pump.fun/coin/4JPJLi59XP3NipggvjpdYTPPkSNK65rHjtAQren3pump", bg: "from-rose-50 to-pink-100", icon: Flame, color: "text-rose-500", hover: "hover:shadow-rose-500/50" },
-                { name: "DexScreener", desc: "Track it live", url: "https://dexscreener.com/solana/4JPJLi59XP3NipggvjpdYTPPkSNK65rHjtAQren3pump", bg: "from-indigo-50 to-purple-100", icon: BarChart2, color: "text-indigo-500", hover: "hover:shadow-indigo-500/50" },
-                { name: "Jupiter", desc: "Swap on Jupiter", url: "https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=4JPJLi59XP3NipggvjpdYTPPkSNK65rHjtAQren3pump", bg: "from-blue-50 to-cyan-100", icon: Orbit, color: "text-blue-500", hover: "hover:shadow-blue-500/50" }
+                { 
+                  name: "PumpFun", desc: "Buy on Pump.fun", url: "https://pump.fun/coin/4JPJLi59XP3NipggvjpdYTPPkSNK65rHjtAQren3pump", 
+                  bg: "bg-gradient-to-br from-[#FFF0F5] to-[#FFE4EC]", border: "border-2 border-pink-200",
+                  icon: Flame, color: "text-rose-500", iconBg: "bg-pink-100", 
+                  hover: "hover:shadow-[0_8px_30px_rgba(255,100,150,0.3)]", badge: "HOT" 
+                },
+                { 
+                  name: "DexScreener", desc: "Track it live", url: "https://dexscreener.com/solana/4JPJLi59XP3NipggvjpdYTPPkSNK65rHjtAQren3pump", 
+                  bg: "bg-gradient-to-br from-[#EEF2FF] to-[#E0E7FF]", border: "border-2 border-indigo-200",
+                  icon: BarChart2, color: "text-indigo-500", iconBg: "bg-white/60",
+                  hover: "hover:shadow-[0_8px_30px_rgba(99,102,241,0.3)]", badge: "LIVE" 
+                },
+                { 
+                  name: "Jupiter", desc: "Swap on Jupiter", url: "https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=4JPJLi59XP3NipggvjpdYTPPkSNK65rHjtAQren3pump", 
+                  bg: "bg-gradient-to-br from-[#F0FDF4] to-[#DCFCE7]", border: "border-2 border-green-200",
+                  icon: Orbit, color: "text-green-700", iconBg: "bg-white/60",
+                  hover: "hover:shadow-[0_8px_30px_rgba(74,124,89,0.3)]", subtitle: "Best prices guaranteed"
+                }
               ].map((card, i) => (
                 <motion.a 
                   key={i} 
                   href={card.url} 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="block group"
+                  className="block group active:scale-95 transition-transform"
                   variants={staggerItem}
                 >
-                  <Card className={`bg-gradient-to-br ${card.bg} border-0 shadow-xl text-center h-full rounded-[24px] transition-all duration-300 group-hover:scale-105 group-hover:border-white ${card.hover}`}>
+                  <Card className={`${card.bg} ${card.border} shadow-xl text-center h-full rounded-[24px] transition-all duration-300 group-hover:-translate-y-2 ${card.hover} relative overflow-hidden`}>
+                    {card.badge && (
+                      <div className={`absolute top-4 right-4 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 z-10 ${card.badge === 'HOT' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                        {card.badge}
+                      </div>
+                    )}
                     <CardContent className="p-8 flex flex-col items-center gap-4 relative">
-                      <div className="w-20 h-20 rounded-full bg-white/60 shadow-inner flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <div className={`w-20 h-20 rounded-full ${card.iconBg} shadow-inner flex items-center justify-center group-hover:scale-110 transition-transform`}>
                         <card.icon className={`w-10 h-10 ${card.color}`} />
                       </div>
                       <div>
                         <h3 className="text-2xl font-bold text-gray-900">{card.name}</h3>
                         <p className="text-gray-600 mt-1 font-medium">{card.desc}</p>
+                        {card.subtitle && <p className="text-green-700 text-xs font-bold mt-2">{card.subtitle}</p>}
                       </div>
-                      <span className="absolute bottom-4 right-6 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all font-bold text-2xl">→</span>
+                      <ChevronRight className="absolute bottom-4 right-6 w-6 h-6 text-[#3D2817]/50 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all" />
                     </CardContent>
                   </Card>
                 </motion.a>
@@ -564,31 +653,36 @@ export default function Home() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-              <motion.a href="https://x.com/bramblelxg" target="_blank" rel="noopener noreferrer" className="block group" variants={staggerItem}>
-                <Card className="bg-black text-white hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] transition-all duration-300 group-hover:scale-105 shadow-xl rounded-[24px] border border-white/20">
-                  <CardContent className="p-8 flex items-center gap-6 relative">
+              <motion.a href="https://x.com/bramblelxg" target="_blank" rel="noopener noreferrer" className="block group active:scale-95 transition-transform" variants={staggerItem}>
+                <Card className="bg-[#000] relative before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/5 before:to-transparent text-white hover:shadow-[0_8px_30px_rgba(255,255,255,0.15)] transition-all duration-300 group-hover:-translate-y-2 shadow-xl rounded-3xl border border-white/20 overflow-hidden">
+                  <CardContent className="p-8 flex items-center gap-6 relative z-10">
                     <div className="p-4 bg-white/10 rounded-full group-hover:bg-white/20 transition-colors">
                       <SiX className="w-10 h-10" />
                     </div>
                     <div>
                       <h3 className="text-2xl font-bold">X/Twitter</h3>
-                      <p className="text-white/70 font-medium">Follow our updates</p>
+                      <p className="text-white/80 font-medium">Follow us on X</p>
+                      <p className="text-white/50 text-xs mt-1">Follow the journey</p>
                     </div>
-                    <span className="absolute right-6 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all font-bold text-2xl">→</span>
+                    <ChevronRight className="absolute right-6 w-6 h-6 text-white/50 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all" />
                   </CardContent>
                 </Card>
               </motion.a>
-              <motion.a href="https://t.me/brambletop" target="_blank" rel="noopener noreferrer" className="block group" variants={staggerItem}>
-                <Card className="bg-[#229ED9] text-white hover:shadow-[0_0_30px_rgba(34,158,217,0.5)] transition-all duration-300 group-hover:scale-105 shadow-xl rounded-[24px] border border-white/20">
+              <motion.a href="https://t.me/brambletop" target="_blank" rel="noopener noreferrer" className="block group active:scale-95 transition-transform" variants={staggerItem}>
+                <Card className="bg-gradient-to-br from-[#229ED9] to-[#1a7baa] text-white hover:shadow-[0_8px_30px_rgba(34,158,217,0.4)] transition-all duration-300 group-hover:-translate-y-2 shadow-xl rounded-3xl border border-white/20">
                   <CardContent className="p-8 flex items-center gap-6 relative">
                     <div className="p-4 bg-white/20 rounded-full group-hover:bg-white/30 transition-colors">
                       <SiTelegram className="w-10 h-10" />
                     </div>
                     <div>
                       <h3 className="text-2xl font-bold">Telegram</h3>
-                      <p className="text-white/80 font-medium">Join the community</p>
+                      <p className="text-white/90 font-medium">Join the community</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="w-2 h-2 rounded-full bg-green-400"></span>
+                        <span className="text-white/70 text-xs">Active chat</span>
+                      </div>
                     </div>
-                    <span className="absolute right-6 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all font-bold text-2xl">→</span>
+                    <ChevronRight className="absolute right-6 w-6 h-6 text-white/50 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all" />
                   </CardContent>
                 </Card>
               </motion.a>
@@ -608,19 +702,22 @@ export default function Home() {
                 <ArrowUp className="w-8 h-8 text-[#D4A574] animate-bounce-gentle rotate-45" />
               </h2>
             </div>
-            <p className="text-xl text-white/70 mb-12 max-w-2xl mx-auto font-medium">
+            <p className="text-xl text-white/70 mb-8 max-w-2xl mx-auto font-medium">
               Roll through Sunbell Meadow, collect flowers, dodge the foxes. How far can you go?
             </p>
             
-            <MiniGame />
+            <div className="flex justify-center gap-4 mb-6">
+              <div className="bg-white/10 backdrop-blur border border-white/20 px-6 py-2 rounded-full text-white font-bold text-lg">
+                🌼 Flowers: <span className="text-[#FFD700] ml-1">{gameScore.current}</span>
+              </div>
+              <div className="bg-white/10 backdrop-blur border border-white/20 px-6 py-2 rounded-full text-white font-bold text-lg">
+                ⭐ Best: <span className="text-[#FFD700] ml-1">{gameScore.high}</span>
+              </div>
+            </div>
+            
+            <MiniGame onScoreUpdate={(current, high) => setGameScore({ current, high })} />
 
             <div className="mt-8 flex flex-col items-center gap-4">
-              <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur border border-white/20 px-6 py-3 rounded-full text-white">
-                <Trophy className="w-5 h-5 text-[#FFD700]" />
-                <span className="font-medium text-lg">Your Best: <span className="font-bold text-[#FFD700] ml-1">{highScore}</span> flowers</span>
-                <Flower2 className="w-4 h-4 text-[#D4A574]" />
-              </div>
-              
               <div className="flex items-center gap-4 text-white/60 text-sm font-medium mt-4">
                 <div className="flex items-center gap-2">
                   <div className="px-3 py-1 border-2 border-white/30 rounded-lg bg-white/5 font-mono shadow-[0_4px_0_rgba(255,255,255,0.2)]">SPACE</div>
@@ -642,7 +739,7 @@ export default function Home() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0 }}
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="fixed bottom-8 right-8 z-50 p-4 bg-[#D4A574] text-[#3D2817] rounded-full shadow-2xl hover:bg-[#c29668] hover:scale-110 transition-all border-2 border-white"
+            className="active:scale-95 fixed bottom-8 right-8 z-50 p-4 bg-[#D4A574] text-[#3D2817] rounded-full shadow-2xl hover:bg-[#c29668] hover:scale-110 transition-all border-2 border-white"
           >
             <ArrowUp className="w-6 h-6" />
           </motion.button>
@@ -670,7 +767,10 @@ export default function Home() {
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="flex flex-col md:flex-row justify-between items-center gap-10 mb-12">
             <div className="text-center md:text-left">
-              <h2 className="text-4xl font-bold text-white mb-2">$BRAMBLE</h2>
+              <h2 className="text-4xl font-bold text-white mb-2 flex items-center justify-center md:justify-start gap-3">
+                <img src="/bramble-hero.png" alt="Bramble" className="w-10 h-10 rounded-full border-2 border-white bg-white/10" />
+                $BRAMBLE
+              </h2>
               <p className="text-white/60 font-medium">Guarding the meadow, one flower at a time</p>
             </div>
             
@@ -678,7 +778,7 @@ export default function Home() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <a href="https://x.com/bramblelxg" target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-black hover:scale-110 transition-all">
+                    <a href="https://x.com/bramblelxg" target="_blank" rel="noopener noreferrer" className="active:scale-95 w-12 h-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-black hover:scale-110 transition-all">
                       <SiX className="w-5 h-5" />
                     </a>
                   </TooltipTrigger>
@@ -687,7 +787,7 @@ export default function Home() {
                 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <a href="https://t.me/brambletop" target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#229ED9] hover:scale-110 transition-all">
+                    <a href="https://t.me/brambletop" target="_blank" rel="noopener noreferrer" className="active:scale-95 w-12 h-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#229ED9] hover:scale-110 transition-all">
                       <SiTelegram className="w-5 h-5" />
                     </a>
                   </TooltipTrigger>
@@ -696,7 +796,7 @@ export default function Home() {
                 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <a href="https://dexscreener.com/solana/4JPJLi59XP3NipggvjpdYTPPkSNK65rHjtAQren3pump" target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-indigo-500 hover:scale-110 transition-all">
+                    <a href="https://dexscreener.com/solana/4JPJLi59XP3NipggvjpdYTPPkSNK65rHjtAQren3pump" target="_blank" rel="noopener noreferrer" className="active:scale-95 w-12 h-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-indigo-500 hover:scale-110 transition-all">
                       <BarChart2 className="w-5 h-5" />
                     </a>
                   </TooltipTrigger>
@@ -708,8 +808,9 @@ export default function Home() {
             <div className="flex flex-col items-center md:items-end gap-2">
               <span className="text-sm text-white/50 font-bold">CONTRACT ADDRESS</span>
               <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-lg border border-white/10">
-                <span className="font-mono text-sm text-white/80">{CA.substring(0,8)}...{CA.substring(CA.length-6)}</span>
-                <button onClick={copyToClipboard} className="text-white/60 hover:text-white transition-colors p-1" title="Copy CA">
+                <span className="font-mono text-sm text-white/80 hidden sm:inline">{CA}</span>
+                <span className="font-mono text-sm text-white/80 sm:hidden">{CA.slice(0,6)}...{CA.slice(-4)}</span>
+                <button onClick={copyToClipboard} className="active:scale-95 text-white/60 hover:text-white transition-colors p-1" title="Copy CA">
                    {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
                 </button>
               </div>
