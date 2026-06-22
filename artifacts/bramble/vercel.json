@@ -1,0 +1,9 @@
+{
+  "buildCommand": "cd ../.. && pnpm --filter @workspace/bramble run build",
+  "outputDirectory": "dist/public",
+  "installCommand": "cd ../.. && pnpm install",
+  "env": {
+    "PORT": "3000",
+    "BASE_PATH": "/"
+  }
+}
