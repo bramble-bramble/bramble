@@ -26,6 +26,9 @@ export default function MiniGame({ onScoreUpdate }: MiniGameProps) {
   
   const resetGameRef = useRef<() => void>(() => {});
   const milestoneRef = useRef({ shown: -1, text: '', alpha: 0 });
+  // Keep a stable ref to the callback so the game loop never needs it as a dep
+  const onScoreUpdateRef = useRef(onScoreUpdate);
+  useEffect(() => { onScoreUpdateRef.current = onScoreUpdate; }, [onScoreUpdate]);
 
   // React state ONLY for overlay
   const [displayState, setDisplayState] = useState<'idle'|'playing'|'gameover'>('idle');
@@ -38,9 +41,9 @@ export default function MiniGame({ onScoreUpdate }: MiniGameProps) {
       const high = parseInt(saved, 10);
       highScoreRef.current = high;
       setDisplayHigh(high);
-      onScoreUpdate?.(0, high);
+      onScoreUpdateRef.current?.(0, high);
     }
-  }, [onScoreUpdate]);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -71,7 +74,7 @@ export default function MiniGame({ onScoreUpdate }: MiniGameProps) {
     const resetGame = () => {
       scoreRef.current = 0;
       setDisplayScore(0);
-      onScoreUpdate?.(0, highScoreRef.current);
+      onScoreUpdateRef.current?.(0, highScoreRef.current);
       gameStateRef.current = 'playing';
       setDisplayState('playing');
       brambleRef.current = { 
@@ -435,7 +438,7 @@ export default function MiniGame({ onScoreUpdate }: MiniGameProps) {
             flowersRef.current.splice(i, 1);
             scoreRef.current++;
             setDisplayScore(scoreRef.current);
-            onScoreUpdate?.(scoreRef.current, highScoreRef.current);
+            onScoreUpdateRef.current?.(scoreRef.current, highScoreRef.current);
           } else if (fl.x < -30) {
             flowersRef.current.splice(i, 1);
           }
@@ -461,7 +464,7 @@ export default function MiniGame({ onScoreUpdate }: MiniGameProps) {
               highScoreRef.current = scoreRef.current;
               setDisplayHigh(scoreRef.current);
               localStorage.setItem('bramble_high_score', scoreRef.current.toString());
-              onScoreUpdate?.(scoreRef.current, scoreRef.current);
+              onScoreUpdateRef.current?.(scoreRef.current, scoreRef.current);
             }
           }
 
@@ -519,7 +522,7 @@ export default function MiniGame({ onScoreUpdate }: MiniGameProps) {
       window.removeEventListener('resize', resizeCanvas);
       cancelAnimationFrame(animIdRef.current);
     };
-  }, [onScoreUpdate]);
+  }, []);
 
   const getShareText = () => {
     const s = scoreRef.current;

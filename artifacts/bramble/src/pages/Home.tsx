@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -105,6 +105,10 @@ export default function Home() {
     whileInView: { opacity: 1, y: 0 },
     transition: { duration: 0.5, ease: "easeOut" as const }
   };
+
+  const handleScoreUpdate = useCallback((current: number, high: number) => {
+    setGameScore({ current, high });
+  }, []);
   
   const cardFlip = {
     initial: { opacity: 0, rotateX: -15, y: 40, scale: 0.95 },
@@ -715,7 +719,7 @@ export default function Home() {
               </div>
             </div>
             
-            <MiniGame onScoreUpdate={(current, high) => setGameScore({ current, high })} />
+            <MiniGame onScoreUpdate={handleScoreUpdate} />
 
             <div className="mt-8 flex flex-col items-center gap-4">
               <div className="flex items-center gap-4 text-white/60 text-sm font-medium mt-4">
